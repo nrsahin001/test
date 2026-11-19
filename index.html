@@ -3,313 +3,155 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OIDC PKCE Test Client — app2</title>
+  <title>Sign in — Together</title>
   <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --border: #334155;
+      --error-bg: rgba(239, 68, 68, 0.15);
+      --error-border: rgba(239, 68, 68, 0.45);
+      --error-text: #fca5a5;
+    }
+    * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #f4f6f9;
-      color: #1f2937;
-      max-width: 820px;
-      margin: 2rem auto;
-      padding: 0 1rem;
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 1.25rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
     .card {
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      padding: 1.5rem;
-      margin-bottom: 1.25rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    h1 { margin-top: 0; font-size: 1.4rem; }
-    h2 { margin-top: 0; font-size: 1.1rem; color: #374151; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 0.75rem; }
-    input {
       width: 100%;
-      box-sizing: border-box;
-      padding: 0.55rem 0.75rem;
-      margin-top: 0.25rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 0.9rem;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     }
-    .btn-row { display: flex; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap; }
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      padding: 0.65rem 1.15rem;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
+    h1 {
+      margin: 0 0 0.4rem;
+      font-size: 1.45rem;
+      letter-spacing: -0.01em;
     }
-    button:hover { background: #1d4ed8; }
-    button.secondary { background: #4b5563; }
-    button.danger { background: #dc2626; }
-    pre {
-      background: #111827;
-      color: #e5e7eb;
-      padding: 1rem;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 0.85rem;
+    .subtitle {
+      margin: 0 0 1.25rem;
+      color: var(--muted);
+      font-size: 0.92rem;
       line-height: 1.45;
     }
-    .status {
-      padding: 0.6rem 0.9rem;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1e40af;
+    .error {
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: 8px;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+      font-size: 0.88rem;
+      line-height: 1.4;
     }
-    .status.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
-    .status.success { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.98rem;
+      padding: 0.8rem 1rem;
+      border-radius: 9px;
+      border: 0;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      margin-top: 0.65rem;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      padding: 0.55rem 0.85rem;
+    }
+    .btn-secondary:hover {
+      color: var(--text);
+      border-color: #475569;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .small {
+      margin: 0.9rem 0 0;
+      font-size: 0.84rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .small a { color: #93c5fd; }
+    details {
+      margin-top: 1rem;
+      border-top: 1px solid var(--border);
+      padding-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    pre {
+      margin: 0.5rem 0 0;
+      padding: 0.65rem;
+      border-radius: 8px;
+      background: #0b1120;
+      color: #cbd5e1;
+      overflow-x: auto;
+      max-height: 220px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
+  <main class="card">
+    <h1>Together</h1>
+    <p class="subtitle">Sign in with {{PROVIDER}} to continue.</p>
 
-  <div class="card">
-    <h1>OIDC Authorization Code + PKCE (S256) Tester</h1>
-    <div id="status" class="status">Ready. Verify your Redirect URI matches your current browser URL.</div>
+    {{ERROR}}
 
-    <label>Discovery URL</label>
-    <input id="discoveryUrl" value="https://app.najibur.me/.well-known/openid-configuration" />
+    <a class="btn" href="/auth/start">Continue with {{PROVIDER}}</a>
 
-    <label>Client ID</label>
-    <input id="clientId" value="q5EgxX6PElpq2awgXRlLclDgynacQHpx" />
+    {{SIGNUP}}
 
-    <label>Client Secret (Confidential App)</label>
-    <input id="clientSecret" value="Q0rDS3b1nDtdXaiQT8MBcmTM1slQRC8scia2aQhC0FihnX-9F3wccw" />
-
-    <label>Redirect URI (Must match your dashboard exactly)</label>
-    <input id="redirectUri" />
-
-    <label>Scopes</label>
-    <input id="scopes" value="openid profile email phone birthdate" />
-
-    <div class="btn-row">
-      <button onclick="checkDiscovery()">1. Test Discovery Endpoint</button>
-      <button onclick="startLogin()">2. Login with NR Auth</button>
-      <button class="secondary" onclick="fetchUserInfo()">3. Fetch UserInfo</button>
-      <button class="danger" onclick="resetSession()">Reset</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Logs & Token Response</h2>
-    <pre id="output">Click "1. Test Discovery Endpoint" or "2. Login with NR Auth" to begin...</pre>
-  </div>
+    <details id="diagBox">
+      <summary style="cursor:pointer;">OIDC Provider Check</summary>
+      <button type="button" class="btn btn-secondary" id="checkBtn">Check Discovery Endpoint</button>
+      <pre id="diagOut">Click "Check Discovery Endpoint" to test reachability.</pre>
+    </details>
+  </main>
 
   <script>
-    // Auto-fill current URL (without query params) as Redirect URI
-    const currentBaseUrl = window.location.origin + window.location.pathname;
-    document.getElementById('redirectUri').value = currentBaseUrl.replace(/\/$/, '');
+    const checkBtn = document.getElementById('checkBtn');
+    const diagOut = document.getElementById('diagOut');
+    const diagBox = document.getElementById('diagBox');
 
-    const outputEl = document.getElementById('output');
-    const statusEl = document.getElementById('status');
-
-    function setStatus(msg, type = 'info') {
-      statusEl.textContent = msg;
-      statusEl.className = 'status' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
-    }
-
-    function log(title, data) {
-      const formatted = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-      outputEl.textContent = `=== ${title} ===\n${formatted}\n\n` + outputEl.textContent;
-    }
-
-    // Generate cryptographically random string
-    function generateRandomString(length = 64) {
-      const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-      const values = new Uint8Array(length);
-      crypto.getRandomValues(values);
-      return Array.from(values, v => charset[v % charset.length]).join('');
-    }
-
-    // Base64URL encode ArrayBuffer
-    function base64UrlEncode(buffer) {
-      return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    }
-
-    // Create PKCE S256 code_challenge from code_verifier
-    async function generateCodeChallenge(verifier) {
-      const data = new TextEncoder().encode(verifier);
-      const digest = await crypto.subtle.digest('SHA-256', data);
-      return base64UrlEncode(digest);
-    }
-
-    // Decode JWT payload without verification (for visual inspection)
-    function decodeJwt(token) {
+    checkBtn.addEventListener('click', async () => {
+      diagBox.open = true;
+      diagOut.textContent = 'Checking https://app.najibur.me/.well-known/openid-configuration ...';
       try {
-        const payload = token.split('.')[1];
-        const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-        return JSON.parse(decoded);
-      } catch (e) {
-        return { error: 'Could not decode JWT', raw: token };
-      }
-    }
-
-    async function checkDiscovery() {
-      const url = document.getElementById('discoveryUrl').value.trim();
-      try {
-        setStatus('Fetching OpenID Configuration...');
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const config = await res.json();
-        sessionStorage.setItem('oidc_config', JSON.stringify(config));
-        setStatus('Discovery endpoint works!', 'success');
-        log('Discovery Configuration', config);
-        return config;
+        const res = await fetch('https://app.najibur.me/.well-known/openid-configuration', { cache: 'no-store' });
+        const text = await res.text();
+        let formatted = text;
+        try { formatted = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+        diagOut.textContent = `HTTP ${res.status} ${res.statusText}\n\n${formatted}`;
       } catch (err) {
-        setStatus('Failed to fetch Discovery URL: ' + err.message, 'error');
-        log('Discovery Error', err.message);
+        diagOut.textContent =
+          `Browser fetch failed: ${err.message}\n` +
+          'Note: If your server sign-in button works, the issue is only missing CORS headers on /.well-known/openid-configuration for browser requests.';
       }
-    }
-
-    async function startLogin() {
-      let config = JSON.parse(sessionStorage.getItem('oidc_config') || 'null');
-      if (!config) {
-        config = await checkDiscovery();
-        if (!config) return;
-      }
-
-      const clientId = document.getElementById('clientId').value.trim();
-      const clientSecret = document.getElementById('clientSecret').value.trim();
-      const redirectUri = document.getElementById('redirectUri').value.trim();
-      const scopes = document.getElementById('scopes').value.trim();
-
-      const state = generateRandomString(32);
-      const codeVerifier = generateRandomString(64);
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-      // Save values in sessionStorage for the callback
-      sessionStorage.setItem('pkce_verifier', codeVerifier);
-      sessionStorage.setItem('oauth_state', state);
-      sessionStorage.setItem('client_id', clientId);
-      sessionStorage.setItem('client_secret', clientSecret);
-      sessionStorage.setItem('redirect_uri', redirectUri);
-
-      const authUrl = new URL(config.authorization_endpoint);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('scope', scopes);
-      authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('code_challenge', codeChallenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-
-      window.location.href = authUrl.toString();
-    }
-
-    async function handleCallback() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-      const returnedState = params.get('state');
-      const error = params.get('error');
-
-      if (error) {
-        setStatus(`Authorization Error: ${error} (${params.get('error_description') || ''})`, 'error');
-        log('Callback Error', Object.fromEntries(params.entries()));
-        return;
-      }
-
-      if (!code) return;
-
-      const expectedState = sessionStorage.getItem('oauth_state');
-      if (returnedState !== expectedState) {
-        setStatus('State mismatch! Possible CSRF or stale session.', 'error');
-        return;
-      }
-
-      setStatus('Authorization code received! Exchanging for tokens...');
-      log('Authorization Callback Params', Object.fromEntries(params.entries()));
-
-      const config = JSON.parse(sessionStorage.getItem('oidc_config'));
-      const verifier = sessionStorage.getItem('pkce_verifier');
-      const clientId = sessionStorage.getItem('client_id');
-      const clientSecret = sessionStorage.getItem('client_secret');
-      const redirectUri = sessionStorage.getItem('redirect_uri');
-
-      const body = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: redirectUri,
-        client_id: clientId,
-        code_verifier: verifier
-      });
-
-      if (clientSecret) {
-        body.set('client_secret', clientSecret);
-      }
-
-      try {
-        const tokenRes = await fetch(config.token_endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body.toString()
-        });
-
-        const tokenData = await tokenRes.json();
-
-        if (!tokenRes.ok) {
-          setStatus('Token exchange failed!', 'error');
-          log('Token Error Response', tokenData);
-          return;
-        }
-
-        sessionStorage.setItem('access_token', tokenData.access_token || '');
-        setStatus('Login successful! Tokens received.', 'success');
-        log('Token Endpoint Response', tokenData);
-
-        if (tokenData.id_token) {
-          log('Decoded ID Token Claims', decodeJwt(tokenData.id_token));
-        }
-
-        // Clean URL query params
-        window.history.replaceState({}, document.title, redirectUri);
-      } catch (err) {
-        setStatus('Token request failed (check CORS on /token endpoint): ' + err.message, 'error');
-        log('Network / CORS Error', err.message);
-      }
-    }
-
-    async function fetchUserInfo() {
-      const config = JSON.parse(sessionStorage.getItem('oidc_config') || 'null');
-      const accessToken = sessionStorage.getItem('access_token');
-
-      if (!config || !accessToken) {
-        setStatus('Complete step 2 first to get an access_token.', 'error');
-        return;
-      }
-
-      try {
-        const res = await fetch(config.userinfo_endpoint, {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const userData = await res.json();
-        setStatus('UserInfo fetched successfully!', 'success');
-        log('UserInfo Endpoint Response', userData);
-      } catch (err) {
-        setStatus('Failed to fetch UserInfo: ' + err.message, 'error');
-        log('UserInfo Error', err.message);
-      }
-    }
-
-    function resetSession() {
-      sessionStorage.clear();
-      window.history.replaceState({}, document.title, window.location.pathname);
-      outputEl.textContent = 'Session cleared.';
-      setStatus('Reset complete.');
-    }
-
-    // Run callback handler automatically if redirected back with ?code=...
-    window.addEventListener('DOMContentLoaded', handleCallback);
+    });
   </script>
 </body>
 </html>
