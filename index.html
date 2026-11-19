@@ -3,155 +3,423 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign in — Together</title>
+  <title>OIDC Authorization Code + PKCE Tester</title>
   <style>
     :root {
       --bg: #0f172a;
       --card: #1e293b;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
       --border: #334155;
-      --error-bg: rgba(239, 68, 68, 0.15);
-      --error-border: rgba(239, 68, 68, 0.45);
-      --error-text: #fca5a5;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --ok: #22c55e;
+      --err: #ef4444;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 1.25rem;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
+      padding: 24px;
+      line-height: 1.5;
     }
+    .wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 18px; }
     .card {
-      width: 100%;
-      max-width: 420px;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.75rem;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 20px;
     }
-    h1 {
-      margin: 0 0 0.4rem;
-      font-size: 1.45rem;
-      letter-spacing: -0.01em;
-    }
-    .subtitle {
-      margin: 0 0 1.25rem;
-      color: var(--muted);
-      font-size: 0.92rem;
-      line-height: 1.45;
-    }
-    .error {
-      margin: 0 0 1rem;
-      padding: 0.75rem 0.9rem;
-      border-radius: 8px;
-      background: var(--error-bg);
-      border: 1px solid var(--error-border);
-      color: var(--error-text);
-      font-size: 0.88rem;
-      line-height: 1.4;
-    }
-    .btn {
-      display: block;
+    h1 { margin: 0 0 6px; font-size: 1.35rem; }
+    h2 { margin: 0 0 12px; font-size: 1.05rem; color: var(--accent); }
+    p.sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+    input, select {
       width: 100%;
-      text-align: center;
-      text-decoration: none;
-      background: var(--accent);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.98rem;
-      padding: 0.8rem 1rem;
-      border-radius: 9px;
-      border: 0;
-      cursor: pointer;
-      transition: background 0.15s ease;
-    }
-    .btn:hover { background: var(--accent-hover); }
-    .btn-secondary {
-      margin-top: 0.65rem;
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      font-size: 0.85rem;
-      padding: 0.55rem 0.85rem;
-    }
-    .btn-secondary:hover {
-      color: var(--text);
-      border-color: #475569;
-      background: rgba(255, 255, 255, 0.03);
-    }
-    .small {
-      margin: 0.9rem 0 0;
-      font-size: 0.84rem;
-      color: var(--muted);
-      text-align: center;
-    }
-    .small a { color: #93c5fd; }
-    details {
-      margin-top: 1rem;
-      border-top: 1px solid var(--border);
-      padding-top: 0.75rem;
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-    pre {
-      margin: 0.5rem 0 0;
-      padding: 0.65rem;
+      padding: 9px 11px;
       border-radius: 8px;
-      background: #0b1120;
-      color: #cbd5e1;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: #082f49;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.88rem;
+    }
+    button:hover { background: var(--accent-hover); color: #fff; }
+    button.ghost {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    button.ghost:hover { border-color: var(--accent); }
+    .banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      margin-bottom: 14px;
+    }
+    .banner.ok { border-color: rgba(34, 197, 94, 0.5); color: #86efac; }
+    .banner.err { border-color: rgba(239, 68, 68, 0.5); color: #fca5a5; }
+    pre {
+      margin: 0;
+      padding: 14px;
+      border-radius: 8px;
+      background: #090d16;
+      border: 1px solid var(--border);
+      color: #e2e8f0;
       overflow-x: auto;
-      max-height: 220px;
+      font-size: 0.82rem;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+    code.inline {
+      background: #090d16;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 0.82rem;
     }
   </style>
 </head>
 <body>
-  <main class="card">
-    <h1>Together</h1>
-    <p class="subtitle">Sign in with {{PROVIDER}} to continue.</p>
+  <div class="wrap">
+    <div class="card">
+      <h1>OIDC Connect &amp; PKCE (S256) Tester</h1>
+      <p class="sub">
+        Tests <code class="inline">/.well-known/openid-configuration</code>, JWKS, Authorization Code + PKCE + Nonce,
+        and callback handling for your OIDC provider.
+      </p>
+    </div>
 
-    {{ERROR}}
+    <div class="card">
+      <h2>1. OIDC Client Configuration</h2>
+      <div id="statusBox" class="banner">Ready. Set Redirect URI to match your registered callback URL.</div>
 
-    <a class="btn" href="/auth/start">Continue with {{PROVIDER}}</a>
+      <div class="grid">
+        <div>
+          <label for="issuer">OIDC Issuer (no trailing slash)</label>
+          <input id="issuer" value="https://app.najibur.me" />
+        </div>
+        <div>
+          <label for="clientId">Client ID</label>
+          <input id="clientId" value="Client ID: q5EgxX6PElpq2awgXRlLcIDgynacQHpx" />
+        </div>
+        <div>
+          <label for="redirectUri">Redirect URI (exact match)</label>
+          <input id="redirectUri" />
+        </div>
+        <div>
+          <label for="scope">Scopes</label>
+          <input id="scope" value="openid profile email" />
+        </div>
+        <div>
+          <label for="clientType">Client Mode</label>
+          <select id="clientType">
+            <option value="public">PKCE Public / Browser Test (no secret in HTML)</option>
+            <option value="confidential">Confidential (include Client Secret in token request)</option>
+          </select>
+        </div>
+        <div>
+          <label for="clientSecret">Client Secret (optional for local test)</label>
+          <input id="clientSecret" type="password" placeholder="Paste only if testing confidential token exchange" />
+        </div>
+      </div>
 
-    {{SIGNUP}}
+      <div class="actions">
+        <button id="btnDiscover" type="button">Fetch Discovery &amp; JWKS</button>
+        <button id="btnAuthUrl" type="button" class="ghost">Preview Auth URL &amp; PKCE</button>
+        <button id="btnLogin" type="button">Start OIDC Login</button>
+        <button id="btnExchange" type="button" class="ghost">Exchange Code (Browser)</button>
+        <button id="btnClear" type="button" class="ghost">Clear Session</button>
+      </div>
+    </div>
 
-    <details id="diagBox">
-      <summary style="cursor:pointer;">OIDC Provider Check</summary>
-      <button type="button" class="btn btn-secondary" id="checkBtn">Check Discovery Endpoint</button>
-      <pre id="diagOut">Click "Check Discovery Endpoint" to test reachability.</pre>
-    </details>
-  </main>
+    <div class="card">
+      <h2>2. Inspection &amp; Logs</h2>
+      <pre id="log">Waiting for action...</pre>
+    </div>
+  </div>
 
   <script>
-    const checkBtn = document.getElementById('checkBtn');
-    const diagOut = document.getElementById('diagOut');
-    const diagBox = document.getElementById('diagBox');
+    const STORAGE_KEY = 'oidc_pkce_tester_v1';
+    const $ = (id) => document.getElementById(id);
 
-    checkBtn.addEventListener('click', async () => {
-      diagBox.open = true;
-      diagOut.textContent = 'Checking https://app.najibur.me/.well-known/openid-configuration ...';
+    const defaultRedirect = `${window.location.origin}${window.location.pathname}`;
+    $('redirectUri').value = defaultRedirect;
+
+    function setStatus(msg, kind = '') {
+      const box = $('statusBox');
+      box.textContent = msg;
+      box.className = `banner ${kind}`.trim();
+    }
+
+    function writeLog(title, payload) {
+      const stamp = new Date().toISOString();
+      const body = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+      $('log').textContent = `[${stamp}] ${title}\n${body}\n\n${$('log').textContent}`;
+    }
+
+    function b64url(bytes) {
+      const bin = bytes instanceof Uint8Array
+        ? String.fromCharCode(...bytes)
+        : String.fromCharCode(...new Uint8Array(bytes));
+      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function randomToken(byteLen = 32) {
+      const buf = new Uint8Array(byteLen);
+      crypto.getRandomValues(buf);
+      return b64url(buf);
+    }
+
+    async function sha256Base64Url(plain) {
+      const data = new TextEncoder().encode(plain);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return b64url(digest);
+    }
+
+    function decodeJwtPart(token, idx) {
       try {
-        const res = await fetch('https://app.najibur.me/.well-known/openid-configuration', { cache: 'no-store' });
-        const text = await res.text();
-        let formatted = text;
-        try { formatted = JSON.stringify(JSON.parse(text), null, 2); } catch {}
-        diagOut.textContent = `HTTP ${res.status} ${res.statusText}\n\n${formatted}`;
-      } catch (err) {
-        diagOut.textContent =
-          `Browser fetch failed: ${err.message}\n` +
-          'Note: If your server sign-in button works, the issue is only missing CORS headers on /.well-known/openid-configuration for browser requests.';
+        const part = token.split('.')[idx];
+        if (!part) return null;
+        const norm = part.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = norm.length % 4 ? '='.repeat(4 - (norm.length % 4)) : '';
+        return JSON.parse(atob(norm + pad));
+      } catch (e) {
+        return { parseError: e.message };
+      }
+    }
+
+    function getFormValues() {
+      return {
+        issuer: $('issuer').value.trim().replace(/\/+$/, ''),
+        clientId: $('clientId').value.trim(),
+        redirectUri: $('redirectUri').value.trim(),
+        scope: $('scope').value.trim(),
+        clientType: $('clientType').value,
+        clientSecret: $('clientSecret').value,
+      };
+    }
+
+    function loadState() {
+      try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}'); }
+      catch { return {}; }
+    }
+
+    function saveState(patch) {
+      const next = { ...loadState(), ...patch };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    }
+
+    async function fetchDiscoveryAndJwks() {
+      const { issuer } = getFormValues();
+      const discoveryUrl = `${issuer}/.well-known/openid-configuration`;
+      setStatus(`Fetching ${discoveryUrl} ...`);
+      const res = await fetch(discoveryUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error(`Discovery HTTP ${res.status}`);
+      const meta = await res.json();
+
+      let jwks = null;
+      if (meta.jwks_uri) {
+        const jwksRes = await fetch(meta.jwks_uri, { mode: 'cors' });
+        if (jwksRes.ok) jwks = await jwksRes.json();
+      }
+      saveState({ meta, jwks, issuer });
+      writeLog('Discovery & JWKS', { discoveryUrl, meta, jwks });
+      setStatus('Discovery loaded successfully.', 'ok');
+      return { meta, jwks };
+    }
+
+    async function buildAuthRequest() {
+      const cfg = getFormValues();
+      let { meta } = loadState();
+      if (!meta || meta.issuer !== cfg.issuer) {
+        try {
+          ({ meta } = await fetchDiscoveryAndJwks());
+        } catch (err) {
+          // Fallback to standard path if /.well-known is not CORS-enabled for browser fetch
+          meta = {
+            issuer: cfg.issuer,
+            authorization_endpoint: `${cfg.issuer}/authorize`,
+            token_endpoint: `${cfg.issuer}/oauth/token`,
+          };
+          writeLog('Discovery Fallback (CORS or unreachable)', {
+            error: err.message,
+            assumedAuthorizationEndpoint: meta.authorization_endpoint,
+          });
+        }
+      }
+
+      const state = randomToken(18);
+      const nonce = randomToken(18);
+      const codeVerifier = randomToken(48);
+      const codeChallenge = await sha256Base64Url(codeVerifier);
+
+      const url = new URL(meta.authorization_endpoint);
+      url.search = new URLSearchParams({
+        response_type: 'code',
+        client_id: cfg.clientId,
+        redirect_uri: cfg.redirectUri,
+        scope: cfg.scope,
+        state,
+        nonce,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      }).toString();
+
+      saveState({
+        cfg,
+        meta,
+        pending: { state, nonce, codeVerifier, codeChallenge, authUrl: url.toString() },
+      });
+
+      return { url: url.toString(), state, nonce, codeVerifier, codeChallenge, meta };
+    }
+
+    async function exchangeCodeInBrowser(code) {
+      const st = loadState();
+      const cfg = st.cfg || getFormValues();
+      const tokenEndpoint = st.meta?.token_endpoint || `${cfg.issuer}/oauth/token`;
+      const verifier = st.pending?.codeVerifier;
+      if (!code) throw new Error('No authorization `code` available to exchange.');
+      if (!verifier) throw new Error('Missing `code_verifier` in sessionStorage.');
+
+      const params = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: cfg.redirectUri,
+        client_id: cfg.clientId,
+        code_verifier: verifier,
+      });
+
+      const headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      };
+
+      if (cfg.clientType === 'confidential' && cfg.clientSecret) {
+        params.set('client_secret', cfg.clientSecret);
+      }
+
+      setStatus(`Exchanging code at ${tokenEndpoint} ...`);
+      const res = await fetch(tokenEndpoint, {
+        method: 'POST',
+        mode: 'cors',
+        headers,
+        body: params.toString(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        writeLog('Token Exchange Failed', { status: res.status, data });
+        throw new Error(`Token endpoint returned ${res.status}`);
+      }
+
+      const decoded = data.id_token ? {
+        header: decodeJwtPart(data.id_token, 0),
+        payload: decodeJwtPart(data.id_token, 1),
+      } : null;
+
+      saveState({ lastTokens: data, decodedIdToken: decoded });
+      writeLog('Token Exchange Success', { tokens: data, decodedIdToken: decoded });
+      setStatus('Tokens received and ID token payload decoded.', 'ok');
+    }
+
+    function checkCallbackOnLoad() {
+      const qs = new URLSearchParams(window.location.search);
+      const code = qs.get('code');
+      const state = qs.get('state');
+      const error = qs.get('error');
+      const desc = qs.get('error_description');
+
+      if (!code && !error) return;
+
+      const st = loadState();
+      const expectedState = st.pending?.state;
+      const stateMatches = Boolean(expectedState && state === expectedState);
+
+      saveState({ callback: { code, state, error, desc, stateMatches } });
+      writeLog('OIDC Callback Received', {
+        codePresent: Boolean(code),
+        state,
+        expectedState,
+        stateMatches,
+        error,
+        error_description: desc,
+        serverSideExchangeHint: st.pending?.codeVerifier ? {
+          code,
+          code_verifier: st.pending.codeVerifier,
+          redirect_uri: st.cfg?.redirectUri || $('redirectUri').value,
+        } : undefined,
+      });
+
+      if (error) {
+        setStatus(`Auth server returned error: ${error}${desc ? ` (${desc})` : ''}`, 'err');
+      } else if (!stateMatches) {
+        setStatus('Callback received, but `state` did not match session.', 'err');
+      } else {
+        setStatus('Authorization code received and `state` verified. Click "Exchange Code (Browser)" or exchange server-side.', 'ok');
+      }
+    }
+
+    $('btnDiscover').addEventListener('click', async () => {
+      try { await fetchDiscoveryAndJwks(); }
+      catch (err) {
+        setStatus(`Discovery failed: ${err.message}`, 'err');
+        writeLog('Discovery Error', { message: err.message, tip: 'Check server availability and CORS headers on /.well-known/*' });
       }
     });
+
+    $('btnAuthUrl').addEventListener('click', async () => {
+      try {
+        const built = await buildAuthRequest();
+        writeLog('Generated Auth Request', built);
+        setStatus('Generated PKCE challenge and authorization URL.', 'ok');
+      } catch (err) {
+        setStatus(err.message, 'err');
+      }
+    });
+
+    $('btnLogin').addEventListener('click', async () => {
+      try {
+        const built = await buildAuthRequest();
+        window.location.assign(built.url);
+      } catch (err) {
+        setStatus(`Could not start login: ${err.message}`, 'err');
+        writeLog('Start Login Error', err.message);
+      }
+    });
+
+    $('btnExchange').addEventListener('click', async () => {
+      try {
+        const code = new URLSearchParams(window.location.search).get('code') || loadState().callback?.code;
+        await exchangeCodeInBrowser(code);
+      } catch (err) {
+        setStatus(err.message, 'err');
+      }
+    });
+
+    $('btnClear').addEventListener('click', () => {
+      sessionStorage.removeItem(STORAGE_KEY);
+      $('log').textContent = '';
+      setStatus('Cleared session storage and logs.');
+    });
+
+    checkCallbackOnLoad();
   </script>
 </body>
 </html>
