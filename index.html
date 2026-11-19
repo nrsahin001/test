@@ -1,202 +1,214 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OIDC Confidential App Test (app2)</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      max-width: 820px;
-      margin: 40px auto;
-      padding: 0 16px;
-      line-height: 1.5;
-      color: #18181b;
-    }
-    .card {
-      border: 1px solid #e4e4e7;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 18px;
-      background: #fafafa;
-    }
-    .meta p { margin: 6px 0; font-size: 14px; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-    button {
-      padding: 9px 14px;
-      border: 1px solid #27272a;
-      border-radius: 6px;
-      background: #18181b;
-      color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    button.secondary { background: #fff; color: #18181b; }
-    pre {
-      background: #111827;
-      color: #f9fafb;
-      padding: 14px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 12.5px;
-    }
-    .ok { color: #15803d; font-weight: 600; }
-    .err { color: #b91c1c; font-weight: 600; }
-    code { background: #f4f4f5; padding: 2px 5px; border-radius: 4px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OIDC full test — app2</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1.05rem; margin-top: 1.6rem; }
+  button { font: inherit; padding: .5rem .9rem; border-radius: 6px; border: 1px solid #888; cursor: pointer; }
+  pre { background: #0001; padding: .8rem; border-radius: 6px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #0a7a2f; } .bad { color: #b00020; } .warn { color: #9a6700; }
+  label { display: block; margin: .6rem 0 .2rem; font-weight: 600; }
+  input { width: 100%; padding: .45rem; font: inherit; border-radius: 6px; border: 1px solid #888; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; padding: .8rem 1rem; }
+  legend { padding: 0 .4rem; font-weight: 600; }
+</style>
 </head>
 <body>
-  <h1>OIDC Confidential Client Tester (<code>app2</code>)</h1>
+<h1>OIDC full test — “app2” (confidential client, secret in the browser)</h1>
+<div class="warn">TEST ONLY. The client secret below is visible to anyone who opens this page. Never ship this to real users.</div>
 
-  <div class="card meta">
-    <p><strong>Issuer:</strong> <code>https://app.najibur.me</code></p>
-    <p><strong>Client ID:</strong> <code>q5EgxX6PElpq2awgXRlLcIDgynacQHpx</code></p>
-    <p><strong>Client Secret:</strong> <em>Stored on server (not exposed in HTML)</em></p>
-    <p><strong>Scopes:</strong> <code>openid profile email phone birthdate</code></p>
-    <div class="actions">
-      <button id="loginBtn" type="button">Start OIDC Login</button>
-      <button id="resetBtn" class="secondary" type="button">Reset</button>
-    </div>
-  </div>
+<fieldset>
+  <legend>Configuration</legend>
+  <label>Issuer</label>
+  <input id="issuer" value="https://app.najibur.me">
+  <label>Client ID</label>
+  <input id="clientId" value="q5EgxX6PElpq2awgXRLCIDgynacQHpx">
+  <label>Client secret (test only)</label>
+  <input id="clientSecret" value="Q0rDS3b1nTdXalQT8M8cmTM1siQRC8scia2aQhCQFihnX-9F3wccw">
+  <label>Redirect URI (must match portal EXACTLY)</label>
+  <input id="redirectUri">
+  <label>Scopes</label>
+  <input id="scope" value="openid profile email phone birthdate">
+  <label>Auth method for /token</label>
+  <select id="authMethod" style="padding:.45rem;border-radius:6px;border:1px solid #888;font:inherit">
+    <option value="basic">HTTP Basic (client_secret_basic)</option>
+    <option value="post">client_secret_post (in body)</option>
+  </select>
+</fieldset>
 
-  <p id="status"></p>
+<p>
+  <button id="discover">1. Test discovery</button>
+  <button id="login">2. Log in (full flow)</button>
+  <button id="clear">Reset</button>
+</p>
 
-  <h3>Decoded ID Token Claims</h3>
-  <pre id="claims">Not signed in yet.</pre>
+<pre id="log"></pre>
 
-  <h3>Raw Token Response</h3>
-  <pre id="raw">None</pre>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const logEl = $('log');
+const log = (msg, cls = '') => {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2);
+  logEl.appendChild(line);
+  console.log(msg);
+};
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const sha256 = async (s) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+const rand = (n) => b64u(crypto.getRandomValues(new Uint8Array(n)));
+const decodeJwt = (t) => JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+const SKEY = 'oidc_test_pending';
 
-  <script>
-    const ISSUER = 'https://app.najibur.me';
-    const CLIENT_ID = 'q5EgxX6PElpq2awgXRlLcIDgynacQHpx';
-    const REDIRECT_URI = window.location.origin + '/';
-    const SCOPE = 'openid profile email phone birthdate';
-    const STORAGE_KEY = 'Q0rDS3b1nDtdXaiQT8MBcmTM1sIQRC8scia2aQhC0FihnX-9F3wccw';
+$('redirectUri').value = location.origin + location.pathname;
 
-    const statusEl = document.getElementById('status');
-    const claimsEl = document.getElementById('claims');
-    const rawEl = document.getElementById('raw');
+$('discover').onclick = async () => {
+  logEl.innerHTML = '';
+  const issuer = $('issuer').value.replace(/\/+$/, '');
+  try {
+    const r = await fetch(issuer + '/.well-known/openid-configuration');
+    log('HTTP ' + r.status, r.ok ? 'ok' : 'bad');
+    const m = await r.json();
+    log(m);
+    if (m.issuer !== issuer) log(`⚠ issuer mismatch: config says ${m.issuer}`, 'bad');
+    else log('✓ discovery OK, issuer matches', 'ok');
+    for (const k of ['authorization_endpoint', 'token_endpoint', 'jwks_uri'])
+      log((m[k] ? '✓ ' : '✗ missing ') + k, m[k] ? 'ok' : 'bad');
+  } catch (e) {
+    log('✗ discovery failed: ' + e.message, 'bad');
+    log('Check DevTools → Network for the actual CORS/network error.', 'warn');
+  }
+};
 
-    function setStatus(msg, type = '') {
-      statusEl.className = type;
-      statusEl.textContent = msg;
-    }
+$('login').onclick = async () => {
+  logEl.innerHTML = '';
+  const cfg = {
+    issuer: $('issuer').value.replace(/\/+$/, ''),
+    clientId: $('clientId').value.trim(),
+    clientSecret: $('clientSecret').value.trim(),
+    redirectUri: $('redirectUri').value.trim(),
+    scope: $('scope').value.trim(),
+    authMethod: $('authMethod').value,
+  };
+  if (!cfg.clientId || !cfg.redirectUri) return log('✗ Client ID and redirect URI are required', 'bad');
 
-    function b64u(bytes) {
-      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-      let bin = '';
-      for (let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
-      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
+  let meta;
+  try {
+    const r = await fetch(cfg.issuer + '/.well-known/openid-configuration');
+    if (!r.ok) throw new Error('discovery HTTP ' + r.status);
+    meta = await r.json();
+  } catch (e) {
+    return log('✗ cannot start: ' + e.message, 'bad');
+  }
 
-    function randomToken(len = 32) {
-      return b64u(crypto.getRandomValues(new Uint8Array(len)));
-    }
+  const state = rand(18);
+  const nonce = rand(18);
+  const verifier = rand(48);
+  const challenge = b64u(await sha256(verifier));
+  sessionStorage.setItem(SKEY, JSON.stringify({ ...cfg, state, nonce, verifier, at: Date.now() }));
 
-    async function sha256B64u(plain) {
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain));
-      return b64u(digest);
-    }
+  const url = new URL(meta.authorization_endpoint);
+  url.search = new URLSearchParams({
+    response_type: 'code',
+    client_id: cfg.clientId,
+    redirect_uri: cfg.redirectUri,
+    scope: cfg.scope,
+    state,
+    nonce,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  }).toString();
+  log('Redirecting…');
+  log(url.toString());
+  location.assign(url.toString());
+};
 
-    function decodeJwt(token) {
-      const parts = String(token).split('.');
-      if (parts.length !== 3) throw new Error('Invalid ID token format');
-      return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    }
+async function finish() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('code') && !q.has('error')) return;
 
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      try {
-        setStatus('Loading OIDC discovery metadata...');
-        const discRes = await fetch(`${ISSUER}/.well-known/openid-configuration`);
-        if (!discRes.ok) throw new Error(`Discovery failed (${discRes.status})`);
-        const meta = await discRes.json();
+  const raw = sessionStorage.getItem(SKEY);
+  sessionStorage.removeItem(SKEY);
+  logEl.innerHTML = '';
 
-        const state = randomToken(18);
-        const nonce = randomToken(18);
-        const verifier = randomToken(48);
-        const challenge = await sha256B64u(verifier);
+  if (!raw) return log('✗ no pending login in sessionStorage', 'bad');
+  const p = JSON.parse(raw);
 
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ state, nonce, verifier }));
+  if (q.has('error')) {
+    log('✗ authorization error: ' + q.get('error'), 'bad');
+    return log(q.get('error_description') || '');
+  }
+  if (q.get('state') !== p.state) return log('✗ state mismatch — CSRF or stale tab', 'bad');
+  log('✓ state OK', 'ok');
 
-        const authUrl = new URL(meta.authorization_endpoint);
-        authUrl.search = new URLSearchParams({
-          response_type: 'code',
-          client_id: CLIENT_ID,
-          redirect_uri: REDIRECT_URI,
-          scope: SCOPE,
-          state,
-          nonce,
-          code_challenge: challenge,
-          code_challenge_method: 'S256'
-        }).toString();
+  let meta;
+  try { meta = await (await fetch(p.issuer + '/.well-known/openid-configuration')).json(); }
+  catch (e) { log('⚠ discovery failed from browser: ' + e.message, 'warn'); }
+  const tokenEndpoint = meta?.token_endpoint || p.issuer + '/token';
 
-        window.location.assign(authUrl.toString());
-      } catch (err) {
-        setStatus(err.message, 'err');
-      }
-    });
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: q.get('code'),
+    redirect_uri: p.redirectUri,
+    code_verifier: p.verifier,
+  });
+  const headers = { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' };
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
-      sessionStorage.removeItem(STORAGE_KEY);
-      claimsEl.textContent = 'Not signed in yet.';
-      rawEl.textContent = 'None';
-      setStatus('');
-      window.history.replaceState({}, '', REDIRECT_URI);
-    });
+  if (p.authMethod === 'basic') {
+    // RFC 6749 §2.3.1: form-urlencode each part, then base64.
+    headers.Authorization = 'Basic ' + btoa(`${encodeURIComponent(p.clientId)}:${encodeURIComponent(p.clientSecret)}`);
+  } else {
+    body.set('client_id', p.clientId);
+    body.set('client_secret', p.clientSecret);
+  }
 
-    (async function handleCallback() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-      const error = params.get('error');
-      if (!code && !error) return;
+  log('\nPOST ' + tokenEndpoint);
+  let r, txt;
+  try {
+    r = await fetch(tokenEndpoint, { method: 'POST', headers, body });
+    txt = await r.text();
+  } catch (e) {
+    log('✗ fetch threw: ' + e.message, 'bad');
+    log('Most likely CORS: /token does not send Access-Control-Allow-Origin for browser origins. A confidential-client /token endpoint is normally server-only.', 'warn');
+    log('You can confirm with: curl -i -X OPTIONS ' + tokenEndpoint, 'warn');
+    return;
+  }
 
-      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
-      sessionStorage.removeItem(STORAGE_KEY);
+  log('HTTP ' + r.status, r.ok ? 'ok' : 'bad');
+  let tok; try { tok = JSON.parse(txt); } catch { tok = txt; }
+  log(tok, r.ok ? 'ok' : 'bad');
 
-      if (error) {
-        setStatus(`Authorization error: ${error} (${params.get('error_description') || ''})`, 'err');
-        return;
-      }
+  if (!r.ok) {
+    if (/cors/i.test(txt)) log('✗ CORS blocked. Configure the auth server to allow your origin on /token, or move the exchange to a backend.', 'bad');
+    else if (/invalid_client|unauthorized_client/i.test(txt)) log('✗ Server rejected the client credentials / auth method. Try switching Basic ↔ client_secret_post.', 'bad');
+    else if (/invalid_grant/i.test(txt)) log('✗ invalid_grant: code expired, reused, or redirect_uri mismatch vs. what was sent to /authorize.', 'bad');
+    return;
+  }
 
-      if (!saved || params.get('state') !== saved.state) {
-        setStatus('State mismatch or missing PKCE session data.', 'err');
-        return;
-      }
+  log('✓ token endpoint OK', 'ok');
+  if (!tok.id_token) return log('✗ no id_token in response', 'bad');
 
-      try {
-        setStatus('Exchanging code via backend using client_secret...');
-        // Your backend endpoint exchanges { code, code_verifier, redirect_uri } using Basic Auth (client_id + client_secret)
-        const res = await fetch('/api/token-exchange', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code,
-            code_verifier: saved.verifier,
-            redirect_uri: REDIRECT_URI
-          })
-        });
+  const claims = decodeJwt(tok.id_token);
+  log('\nID token claims (NOT signature-verified here):', 'warn');
+  log(claims);
+  log(claims.iss === p.issuer ? '✓ iss matches' : '✗ iss mismatch: ' + claims.iss, claims.iss === p.issuer ? 'ok' : 'bad');
+  const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  log(aud.includes(p.clientId) ? '✓ aud includes client_id' : '✗ aud mismatch', aud.includes(p.clientId) ? 'ok' : 'bad');
+  log(claims.nonce === p.nonce ? '✓ nonce matches' : '✗ nonce mismatch', claims.nonce === p.nonce ? 'ok' : 'bad');
+  if (typeof claims.exp === 'number')
+    log(claims.exp > Math.floor(Date.now() / 1000) ? '✓ not expired' : '✗ expired', claims.exp > Math.floor(Date.now() / 1000) ? 'ok' : 'bad');
+  if (meta?.jwks_uri) log('\nJWKS: ' + meta.jwks_uri + ' (signature verification not performed by this test page)');
+}
 
-        const data = await res.json();
-        rawEl.textContent = JSON.stringify(data, null, 2);
-
-        if (!res.ok || !data.id_token) {
-          throw new Error(data.error_description || data.error || `Token exchange failed (${res.status})`);
-        }
-
-        const claims = decodeJwt(data.id_token);
-        if (claims.nonce && claims.nonce !== saved.nonce) {
-          throw new Error('ID token nonce mismatch.');
-        }
-
-        claimsEl.textContent = JSON.stringify(claims, null, 2);
-        setStatus('Confidential OIDC login succeeded!', 'ok');
-        window.history.replaceState({}, '', REDIRECT_URI);
-      } catch (err) {
-        setStatus(err.message, 'err');
-      }
-    })();
-  </script>
+$('clear').onclick = () => { sessionStorage.removeItem(SKEY); history.replaceState({}, '', location.pathname); logEl.innerHTML = ''; };
+finish();
+</script>
 </body>
 </html>
