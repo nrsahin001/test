@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OIDC Browser Test</title>
+  <title>OIDC Confidential App Test (app2)</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -21,17 +21,8 @@
       margin-bottom: 18px;
       background: #fafafa;
     }
-    label { display: block; font-size: 13px; font-weight: 600; margin-top: 10px; }
-    input {
-      width: 100%;
-      padding: 8px 10px;
-      margin-top: 4px;
-      border: 1px solid #d4d4d8;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 13px;
-    }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .meta p { margin: 6px 0; font-size: 14px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     button {
       padding: 9px 14px;
       border: 1px solid #27272a;
@@ -56,50 +47,37 @@
   </style>
 </head>
 <body>
-  <h1>OIDC Public Client Test (PKCE)</h1>
-  <p>Tests discovery, authorization redirect, PKCE token exchange, and ID token claims directly in the browser[cite: 2, 4].</p>
+  <h1>OIDC Confidential Client Tester (<code>app2</code>)</h1>
 
-  <div class="card">
-    <label for="issuer">Issuer URL</label>
-    <input id="issuer" value="https://app.najibur.me" />
-
-    <label for="clientId">Client ID</label>
-    <input id="clientId" value="q5EgxX6PElpq2awgXRlLcIDgynacQHpx" />
-
-    <label for="redirectUri">Redirect URI (must match registered URI exactly)</label>
-    <input id="redirectUri" />
-
-    <label for="scope">Scopes</label>
-    <input id="scope" value="openid profile email phone birthdate" />
-
+  <div class="card meta">
+    <p><strong>Issuer:</strong> <code>https://app.najibur.me</code></p>
+    <p><strong>Client ID:</strong> <code>q5EgxX6PElpq2awgXRlLcIDgynacQHpx</code></p>
+    <p><strong>Client Secret:</strong> <em>Stored on server (not exposed in HTML)</em></p>
+    <p><strong>Scopes:</strong> <code>openid profile email phone birthdate</code></p>
     <div class="actions">
-      <button id="loginBtn" type="button">Sign In with OIDC</button>
-      <button id="discoverBtn" class="secondary" type="button">Check Discovery</button>
-      <button id="clearBtn" class="secondary" type="button">Clear Output</button>
+      <button id="loginBtn" type="button">Start OIDC Login</button>
+      <button id="resetBtn" class="secondary" type="button">Reset</button>
     </div>
   </div>
 
   <p id="status"></p>
 
   <h3>Decoded ID Token Claims</h3>
-  <pre id="claims">None</pre>
+  <pre id="claims">Not signed in yet.</pre>
 
-  <h3>Raw Response / Metadata</h3>
+  <h3>Raw Token Response</h3>
   <pre id="raw">None</pre>
 
   <script>
-    const issuerEl = document.getElementById('issuer');
-    const clientIdEl = document.getElementById('clientId');
-    const redirectUriEl = document.getElementById('redirectUri');
-    const scopeEl = document.getElementById('scope');
+    const ISSUER = 'https://app.najibur.me';
+    const CLIENT_ID = 'q5EgxX6PElpq2awgXRlLcIDgynacQHpx';
+    const REDIRECT_URI = window.location.origin + '/';
+    const SCOPE = 'openid profile email phone birthdate';
+    const STORAGE_KEY = 'oidc_confidential_pkce';
+
     const statusEl = document.getElementById('status');
     const claimsEl = document.getElementById('claims');
     const rawEl = document.getElementById('raw');
-
-    const defaultRedirect = window.location.origin + window.location.pathname;
-    redirectUriEl.value = defaultRedirect;
-
-    const STORAGE_KEY = 'oidc_pkce_test_state';
 
     function setStatus(msg, type = '') {
       statusEl.className = type;
@@ -124,69 +102,30 @@
 
     function decodeJwt(token) {
       const parts = String(token).split('.');
-      if (parts.length !== 3) throw new Error('Invalid JWT structure');
-      const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
-      return JSON.parse(json);
+      if (parts.length !== 3) throw new Error('Invalid ID token format');
+      return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
     }
-
-    function getConfig() {
-      return {
-        issuer: issuerEl.value.trim().replace(/\/+$/, ''),
-        clientId: clientIdEl.value.trim(),
-        redirectUri: redirectUriEl.value.trim(),
-        scope: scopeEl.value.trim()
-      };
-    }
-
-    async function fetchDiscovery(issuer) {
-      const res = await fetch(`${issuer}/.well-known/openid-configuration`);
-      if (!res.ok) throw new Error(`Discovery HTTP ${res.status}`);
-      return res.json();
-    }
-
-    document.getElementById('discoverBtn').addEventListener('click', async () => {
-      try {
-        setStatus('Fetching discovery document...');
-        const { issuer } = getConfig();
-        const meta = await fetchDiscovery(issuer);
-        rawEl.textContent = JSON.stringify(meta, null, 2);
-        setStatus('Discovery document loaded successfully.', 'ok');
-      } catch (err) {
-        setStatus(`Discovery error: ${err.message}`, 'err');
-      }
-    });
 
     document.getElementById('loginBtn').addEventListener('click', async () => {
       try {
-        const cfg = getConfig();
-        if (!cfg.issuer || !cfg.clientId || !cfg.redirectUri) {
-          throw new Error('Issuer, Client ID, and Redirect URI are required.');
-        }
-
-        setStatus('Preparing PKCE authorization request...');
-        const meta = await fetchDiscovery(cfg.issuer);
-        if (!meta.authorization_endpoint) {
-          throw new Error('authorization_endpoint missing in discovery metadata.');
-        }
+        setStatus('Loading OIDC discovery metadata...');
+        const discRes = await fetch(`${ISSUER}/.well-known/openid-configuration`);
+        if (!discRes.ok) throw new Error(`Discovery failed (${discRes.status})`);
+        const meta = await discRes.json();
 
         const state = randomToken(18);
         const nonce = randomToken(18);
         const verifier = randomToken(48);
         const challenge = await sha256B64u(verifier);
 
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-          state,
-          nonce,
-          verifier,
-          cfg
-        }));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ state, nonce, verifier }));
 
         const authUrl = new URL(meta.authorization_endpoint);
         authUrl.search = new URLSearchParams({
           response_type: 'code',
-          client_id: cfg.clientId,
-          redirect_uri: cfg.redirectUri,
-          scope: cfg.scope,
+          client_id: CLIENT_ID,
+          redirect_uri: REDIRECT_URI,
+          scope: SCOPE,
           state,
           nonce,
           code_challenge: challenge,
@@ -195,16 +134,16 @@
 
         window.location.assign(authUrl.toString());
       } catch (err) {
-        setStatus(`Start login error: ${err.message}`, 'err');
+        setStatus(err.message, 'err');
       }
     });
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
+    document.getElementById('resetBtn').addEventListener('click', () => {
       sessionStorage.removeItem(STORAGE_KEY);
-      claimsEl.textContent = 'None';
+      claimsEl.textContent = 'Not signed in yet.';
       rawEl.textContent = 'None';
       setStatus('');
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, '', REDIRECT_URI);
     });
 
     (async function handleCallback() {
@@ -213,65 +152,49 @@
       const error = params.get('error');
       if (!code && !error) return;
 
-      const savedRaw = sessionStorage.getItem(STORAGE_KEY);
+      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
       sessionStorage.removeItem(STORAGE_KEY);
-      const saved = savedRaw ? JSON.parse(savedRaw) : null;
-
-      if (saved?.cfg) {
-        issuerEl.value = saved.cfg.issuer;
-        clientIdEl.value = saved.cfg.clientId;
-        redirectUriEl.value = saved.cfg.redirectUri;
-        scopeEl.value = saved.cfg.scope;
-      }
 
       if (error) {
-        setStatus(`Authorization error: ${error} — ${params.get('error_description') || ''}`, 'err');
+        setStatus(`Authorization error: ${error} (${params.get('error_description') || ''})`, 'err');
         return;
       }
 
       if (!saved || params.get('state') !== saved.state) {
-        setStatus('State mismatch or missing session state.', 'err');
+        setStatus('State mismatch or missing PKCE session data.', 'err');
         return;
       }
 
       try {
-        setStatus('Exchanging authorization code at token endpoint...');
-        const meta = await fetchDiscovery(saved.cfg.issuer);
-        if (!meta.token_endpoint) {
-          throw new Error('token_endpoint missing in discovery metadata.');
-        }
-
-        const tokenRes = await fetch(meta.token_endpoint, {
+        setStatus('Exchanging code via backend using client_secret...');
+        // Your backend endpoint exchanges { code, code_verifier, redirect_uri } using Basic Auth (client_id + client_secret)
+        const res = await fetch('/api/token-exchange', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: saved.cfg.clientId,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             code,
-            redirect_uri: saved.cfg.redirectUri,
-            code_verifier: saved.verifier
+            code_verifier: saved.verifier,
+            redirect_uri: REDIRECT_URI
           })
         });
 
-        const tokenJson = await tokenRes.json().catch(() => ({}));
-        rawEl.textContent = JSON.stringify(tokenJson, null, 2);
+        const data = await res.json();
+        rawEl.textContent = JSON.stringify(data, null, 2);
 
-        if (!tokenRes.ok) {
-          throw new Error(`Token endpoint returned ${tokenRes.status}: ${tokenJson.error_description || tokenJson.error || 'Unknown error'}`);
+        if (!res.ok || !data.id_token) {
+          throw new Error(data.error_description || data.error || `Token exchange failed (${res.status})`);
         }
 
-        if (tokenJson.id_token) {
-          const claims = decodeJwt(tokenJson.id_token);
-          if (saved.nonce && claims.nonce && claims.nonce !== saved.nonce) {
-            throw new Error('ID token nonce mismatch.');
-          }
-          claimsEl.textContent = JSON.stringify(claims, null, 2);
+        const claims = decodeJwt(data.id_token);
+        if (claims.nonce && claims.nonce !== saved.nonce) {
+          throw new Error('ID token nonce mismatch.');
         }
 
-        setStatus('OIDC login flow succeeded!', 'ok');
-        window.history.replaceState({}, '', saved.cfg.redirectUri);
+        claimsEl.textContent = JSON.stringify(claims, null, 2);
+        setStatus('Confidential OIDC login succeeded!', 'ok');
+        window.history.replaceState({}, '', REDIRECT_URI);
       } catch (err) {
-        setStatus(`Callback error: ${err.message}`, 'err');
+        setStatus(err.message, 'err');
       }
     })();
   </script>
